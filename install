@@ -1,0 +1,308 @@
+sudo apt-get  install vnc4server 
+
+vncserver
+
+sudo apt-get  install vnc4server xfce4 php7.0 php7.0-curl gnome-terminal gedit gnome-system-monitor net-tools 
+
+vncserver -kill :1
+
+sudo vi .vnc/xstartup    
+
+vncserver -geometry 1600x900
+
+
+
+#!/bin/sh   
+   
+# Uncomment the following two lines for normal desktop:   
+# unset SESSION_MANAGER   
+# exec /etc/X11/xinit/xinitrc   
+   
+[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup   
+[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources   
+xsetroot -solid grey   
+vncconfig -iconic &   
+#x-terminal-emulator -geometry 80x24+10+10 -ls -title "$VNCDESKTOP Desktop" &   
+#x-window-manager &   
+   
+sesion-manager & xfdesktop & xfce4-panel &   
+xfce4-menu-plugin &   
+xfsettingsd &   
+xfconfd &   
+xfwm4 &   
+
+
+======vncserver 自启动==========
+创建vnc.sh
+vi /root/Desktop/vnc.sh
+
+写上以下内容
+#!/bin/bash
+su -c "vncserver -geometry 1600x900" root
+su -c "python3 /root/Documents/okex_usdt_email/test.py" root
+
+设置权限
+chmod a+x /root/Desktop/vnc.sh
+
+创建文件
+vi /etc/systemd/system/vncstart.service
+
+写上以下内容
+[Unit]
+After=mysql.service network.target
+
+[Service]
+Type=idle
+ExecStart=/root/Desktop/vnc.sh start
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
+
+设置权限
+chmod 664 /etc/systemd/system/vncstart.service
+systemctl daemon-reload
+systemctl enable vncstart.service
+systemctl start vncstart.service
+systemctl status vncstart.service
+
+========================================
+编辑vnc的配置文件
+
+vim /usr/bin/vncserver
+gedit /usr/bin/vncserver
+修改2个5900端口、改为35500
+
+========在Ubuntu 16.04 安装python3.6 =========
+sudo apt-get install software-properties-common python-software-properties  
+
+sudo add-apt-repository ppa:jonathonf/python-3.6
+上面需要输入回车
+sudo apt-get update
+sudo apt-get install python3.6
+
+
+
+
+
+
+
+
+=======================ssh =============
+sudo apt-get install openssh-server
+sudo vi /etc/ssh/sshd_config
+PermitRootLogin yes
+
+
+=======================================
+
+#!/bin/sh
+
+export XKL_XMODMAP_DISABLE=1
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+
+
+[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup
+[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
+
+xsetroot -solid grey
+vncconfig -iconic &
+gnome-session &
+gnome-panel &
+gnome-settings-daemon &
+metacity &
+nautilus &
+gnome-terminal &
+
+
+======================kvm===========================
+sudo apt-get install qemu-kvm qemu virt-manager virt-viewer  libvirt-bin bridge-utils
+
+
+===========ubuntu 16 修改ip===========
+
+sudo vi /etc/network/interfaces
+
+iface eth0 inet static
+address 193.168.0.43   
+netmask 255.255.255.0
+gateway 193.168.0.1
+dns-nameserver 193.168.0.1
+
+sudo /etc/init.d/networking restart
+
+拨号
+sudo pppoeconf
+
+连接 pondsl-provider
+断开 poff
+==========================ubuntu 17修改ip=============
+
+sudo vi /etc/netplan/01-netcfg.yaml
+
+
+
+
+====================设定时区：=========================
+
+       dpkg-reconfigure tzdata
+
+       选择Asia -> 再选择Shanghai -> OK
+
+
+
+
+=====================pptpd===================
+A.使用apt源服务来安装PPTPD服务
+
+
+sudo apt-get update
+sudo apt-get install pptpd
+B.安装完成之后编辑pptpd.conf配置文件
+
+
+sudo vi /etc/pptpd.conf
+
+#确保如下选项的配置
+option /etc/ppp/pptpd-option                    #指定PPP选项文件的位置
+debug                                           #启用调试模式
+localip 192.168.0.1                             #VPN服务器的虚拟ip
+remoteip 192.168.0.200-238,192.168.0.245        #分配给VPN客户端的虚拟ip
+C.编辑PPP选项配置文件
+
+sudo vi /etc/ppp/pptpd-options
+
+#确保如下选项的配置
+name pptpd                      #pptpd服务的名称
+refuse-pap                      #拒绝pap身份认证模式
+refuse-chap                     #拒绝chap身份认证模式
+refuse-mschap                   #拒绝mschap身份认证模式
+require-mschap-v2               #允许mschap-v2身份认证模式
+require-mppe-128                #允许mppe 128位加密身份认证模式
+ms-dns 8.8.8.8                  #使用Google DNS
+ms-dns 8.8.4.4                  #使用Google DNS
+proxyarp                        #arp代理
+debug                           #调试模式
+dump                            #服务启动时打印出所有配置信息
+lock                            #锁定TTY设备
+nobsdcomp                       #禁用BSD压缩模式
+logfile /var/log/pptpd.log      #输出日志文件位置
+D.编辑用户配置文件来添加用户
+
+sudo vi /etc/ppp/chap-secrets
+
+#格式：用户名   服务类型   密码   分配的ip地址
+test    *    1234    *
+#第一个*代表服务可以是PPTPD也可以是L2TPD，第二个*代表随机分配ip
+E.重启PPTPD服务
+
+
+sudo service pptpd restart
+F.配置网络和路由规则 设置ipv4转发
+
+
+sudo sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g' /etc/sysctl.conf
+sudo sysctl -p
+设置iptables NAT转发
+
+#注意这里eth0代表你的外网网卡，请用ifconfig查看或者咨询网络管理员
+sudo iptables -t nat -A POSTROUTING -s 192.168.0.0/24 -o eth0 -j MASQUERADE
+#如果上面的命令报错,那么可以尝试以下的命令，其中xxx.xxx.xxx.xxx代表你的VPS外网ip地址
+sudo iptables -t nat -A POSTROUTING -s 192.168.0.0/24 -o eth0 -j SNAT --to-source xxx.xxx.xxx.xxx
+设置MTU来确保过大的包不会被丢弃（这个可以不做）
+
+
+sudo iptables -I FORWARD -s 192.168.0.0/24 -p tcp --syn -i ppp+ -j TCPMSS --set-mss 1300
+
+iptables -A POSTROUTING -t nat -s 192.168.0.0/24 -j SNAT --to 服务器IP地址
+
+
+==================================编码问题
+
+sudo vi /etc/default/locale
+
+LANG="en_US.UTF-8"
+LANGUAGE="en_US.UTF-8"
+LC_ALL="en_US.UTF-8"
+
+===========================python 3.6==========
+sudo apt-get install software-properties-common python-software-properties
+sudo add-apt-repository ppa:jonathonf/python-3.6
+sudo apt-get update
+sudo apt-get install python3.6
+
+
+
+==============================linux 修改连接数
+sudo gedit /etc/security/limits.conf
+
+*	hard	nofile	64000
+*	soft	nofile	64000
+root	hard	nofile	64000
+root	soft	nofile	64000
+*	hard	nproc	64000
+*	soft	nproc	64000
+root	hard	nproc	64000
+root	soft	nproc	64000
+*	hard	stack	1024
+*	soft	stack	1024
+root	hard	stack	1024
+root	soft	stack	1024
+
+
+=====================================shadowsocks
+
+apt-get install python-pip
+apt-get update
+pip install shadowsocks
+
+vi /etc/shadowsocks.json
+
+{
+"server":"0.0.0.0",
+"server_port":1984,
+"local_address": "127.0.0.1",
+"local_port":1080,
+"password":"guanzhong",
+"timeout":300,
+"method":"aes-256-cfb",
+"fast_open": true,
+"workers": 1
+} 
+ssserver -c /etc/shadowsocks.json -d start
+
+
+===================安装锐速 UBUNTU=====
+
+ubuntu16.04 ubuntu14.04 测试可用（测试机包括linode aws等）
+直接放一键脚本wget xiaofd.github.io/ruisu.sh && bash ruisu.sh
+注意：安装完会自动重启 正常现象 重启后就安装好了锐速，
+可以使用ps aux | grep appex来检测是否运行
+
+
+===============ssr 安装
+
+https://github.com/shadowsocksr-backup/shadowsocks-rss/wiki/Server-Setup
+
+git clone -b manyuser https://github.com/shadowsocksr-backup/shadowsocksr.git
+
+su -c "python3.6 ~/shadowsocksr/shadowsocks/server.py -p 1985 -k guanzhong -m aes-256-cfb -O auth_sha1_v4 -o http_simple -d start" root
+
+
+
+=============python + adb + uiautomator
+
+pip3 install uiautomator
+
+adb connect 193.168.0.124:5555
+adb devices
+
+
+教程 https://blog.csdn.net/jgw2008/article/details/78286469
+https://blog.csdn.net/qinglang0213/article/details/79568383
+
+
+
+
+
